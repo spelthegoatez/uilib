@@ -38,6 +38,8 @@
 		ConfigFlags = {};
 		_Anonymous = false;
 		_KeybindSyncs = {};
+		_MenuBlurOn = false;
+		_MenuBlurSize = 18;
 	};
 
 	local Palette = {
@@ -1097,13 +1099,15 @@
 		self:Resizable(Main);
 		Main.Active = true;
 
+-- ======== BLUR SETUP (patched) ========
 		local Blur = self:CreateInstance("BlurEffect", {
 			Name = "OddMenuBlur";
 			Parent = Lighting;
-			Size = 18;
-			Enabled = false;
+			Size = 0;
+			Enabled = true;
 		});
 		self._WindowBlur = Blur;
+		self._MenuBlurSize = self._MenuBlurSize or 18;
 		function Library:SyncBlur()
 			if not self._WindowBlur or not self._WindowBlur.Parent then return end;
 			local Win = self.CurrentlyOpen;
@@ -1112,9 +1116,13 @@
 			if Gui then
 				local Intent = Gui:GetAttribute("_FadeShow");
 				if Intent == nil then Visible = Gui.Enabled == true else Visible = Intent == true end;
-			end;
-			self._WindowBlur.Enabled = (self._MenuBlurOn == true) and Visible;
+			end
+			local WantOn = (self._MenuBlurOn == true) and Visible;
+			local Target = WantOn and (self._MenuBlurSize or 18) or 0;
+			self._WindowBlur.Enabled = true;
+			TweenService:Create(self._WindowBlur, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = Target }):Play();
 		end;
+-- ======== /BLUR SETUP ========
 
 		local WindowObject = {
 			Gui = Gui;
@@ -1579,9 +1587,11 @@
 						Dependents = {};
 					};
 					local FillTween = TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out);
-					function ToggleObj:Get() return State end;
+
+-- ======== TOGGLE SET (patched: keeps FadeFrame attribute in sync) ========
 					function ToggleObj:Set(V, Instant)
 						State = V == true;
+						BoxFill:SetAttribute("_fb_BackgroundTransparency", State and 0 or 1);
 						if Instant then
 							BoxFill.BackgroundTransparency = State and 0 or 1;
 							Lbl.TextColor3 = State and Color3.fromRGB(255, 255, 255) or TitleColor;
@@ -1594,6 +1604,9 @@
 							Fn(State);
 						end;
 					end;
+-- ======== /TOGGLE SET ========
+
+					function ToggleObj:Get() return State end;
 					function ToggleObj:OnChanged(Fn)
 						if typeof(Fn) ~= "function" then return self end;
 						table.insert(Listeners, Fn);
@@ -1808,7 +1821,6 @@ function ToggleObj:AddKeybind(Default, Opts)
         end;
     end;
 
-    -- === Mode context menu state ===
     local ModeMenu, ModeMenuItems = nil, nil;
     local SetMode, RefreshModeMenuColors, CloseModeMenu, OpenModeMenu;
 
@@ -1942,7 +1954,6 @@ function ToggleObj:AddKeybind(Default, Opts)
         RefreshModeMenuColors();
     end;
 
-    -- Right-click opens the mode picker
     LibRef:Connection(KbBtn.MouseButton2Click, function()
         if ModeMenu and ModeMenu.Visible then
             CloseModeMenu();
@@ -1951,7 +1962,6 @@ function ToggleObj:AddKeybind(Default, Opts)
         end;
     end);
 
-    -- Click elsewhere to close
     LibRef:Connection(UserInputService.InputBegan, function(input)
         if not ModeMenu or not ModeMenu.Visible then return end;
         if input.UserInputType ~= Enum.UserInputType.MouseButton1
@@ -1971,7 +1981,6 @@ function ToggleObj:AddKeybind(Default, Opts)
         end;
     end);
 
-    -- Keep toggle flag synced with keybind list
     local OrigSet = ToggleObj.Set;
     function ToggleObj:Set(V)
         OrigSet(self, V);
@@ -1983,7 +1992,6 @@ function ToggleObj:AddKeybind(Default, Opts)
 
     if Default ~= nil then SetBind(Default, false) end;
 
-    -- Left click starts listening for a new key
     LibRef:Connection(KbBtn.MouseButton1Click, function()
         if Listening then return end;
         Listening = true;
@@ -2011,7 +2019,6 @@ function ToggleObj:AddKeybind(Default, Opts)
         elseif Mode == "Hold" then
             ToggleObj:Set(true);
         end;
-        -- "Always" ignores the key entirely
     end);
 
     LibRef:Connection(UserInputService.InputEnded, function(input, gpe)
@@ -2020,7 +2027,6 @@ function ToggleObj:AddKeybind(Default, Opts)
         if MatchesBind(input) then ToggleObj:Set(false) end;
     end);
 
-    -- Force on if built in Always mode
     if Mode == "Always" then
         ToggleObj:Set(true);
     end;
@@ -3798,7 +3804,6 @@ end;
 						local Rotation = CFrame.Angles(0, RotY, 0) * CFrame.Angles(RotX, 0, 0);
 						local CamCF = CFrame.new(Center) * Rotation * CFrame.new(0, 0, Dist);
 						Cam.CFrame = CFrame.lookAt(CamCF.Position, Center + Vector3.new(0, -1, 0));
-
 					end);
 
 					local Plr = Players.LocalPlayer;
@@ -3809,7 +3814,6 @@ end;
 							ViewModel(Char);
 						end);
 					end;
-
 
 					local PreviewObj = { Frame = Container, Viewport = Viewport };
 						function PreviewObj:Set() end;
@@ -4611,15 +4615,17 @@ end;
 			return RowsH + 44;
 		end;
 
+-- ======== KEYBIND LIST ROOT (patched: left side default) ========
 		local Root = self:CreateInstance("Frame", {
 			Name = "KeybindRoot";
 			Parent = Gui;
-			Position = Options.Position or UDim2.new(0, 1045, 0, 410);
+			Position = Options.Position or UDim2.new(0, 16, 0, 410);
 			Size = UDim2.new(0, 200, 0, HeightFor(0));
 			BackgroundColor3 = Color3.fromRGB(255, 255, 255);
 			BorderSizePixel = 0;
 			Active = true;
 		});
+-- ======== /KEYBIND LIST ROOT ========
 		self:CreateInstance("UIGradient", {
 			Parent = Root;
 			Rotation = 90;
