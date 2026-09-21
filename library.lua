@@ -44,26 +44,26 @@
 
 	local Palette = {
 		Default = {
-			Top = Color3.fromHex("16151C");
-			Bottom = Color3.fromHex("131219");
+			Top = Color3.fromHex("282A36");
+			Bottom = Color3.fromHex("21222C");
 
-			ContentTop = Color3.fromHex("16151C");
-			ContentBottom = Color3.fromHex("131219");
-			ContentBg = Color3.fromHex("131219");
+			ContentTop = Color3.fromHex("323442");
+			ContentBottom = Color3.fromHex("21222C");
+			ContentBg = Color3.fromHex("21222C");
 
-			FooterTop = Color3.fromHex("16151C");
-			FooterBottom = Color3.fromHex("131219");
+			FooterTop = Color3.fromHex("21222C");
+			FooterBottom = Color3.fromHex("2D2F3C");
 
-			Outline = Color3.fromHex("0D0C12");
-			InnerOutline = Color3.fromHex("212027");
+			Outline = Color3.fromHex("101016");
+			InnerOutline = Color3.fromHex("44475A");
 
-			TitleTop = Color3.fromHex("FBFEFF");
-			TitleBottom = Color3.fromHex("C6C7DD");
+			TitleTop = Color3.fromHex("F8F8F2");
+			TitleBottom = Color3.fromHex("BD93F9");
 
-			TabActive = Color3.fromHex("C6C7DD");
-			Accent = Color3.fromHex("C6C7DD");
+			TabActive = Color3.fromHex("BD93F9");
+			Accent = Color3.fromHex("BD93F9");
 
-			TabInactive = Color3.fromHex("B0AFB4");
+			TabInactive = Color3.fromHex("9698A8");
 
 			Shadow = Color3.fromHex("000000");
 			ShadowSize = 10;
@@ -574,7 +574,6 @@
 	end;
 
 -- Fade
-	Library._FadeCache = Library._FadeCache or setmetatable({}, { __mode = "k" });
 	function Library:CollectFade(Root)
 		local List = {};
 		for _, D in Root:GetDescendants() do
@@ -722,22 +721,45 @@
 	function Library:FadeGui(Root, Show)
 		if typeof(Root) ~= "Instance" then return end;
 		local Gui = Root :: any;
-		local Cache = self._FadeCache[Root];
-		if not Cache then
-			Cache = self:CollectFade(Root);
-			self._FadeCache[Root] = Cache;
-		end;
 		local Info = TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out);
 		Root:SetAttribute("_FadeShow", Show == true);
+
+		local Items = {};
+		local function Add(Inst, Prop)
+			local Key = "_fb_" .. Prop;
+			local Base = Inst:GetAttribute(Key);
+			if Base == nil then Base = Inst[Prop]; Inst:SetAttribute(Key, Base) end;
+			Items[#Items + 1] = { Inst, Prop, Base };
+		end;
+		for _, D in Root:GetDescendants() do
+			if D:IsA("GuiObject") then
+				Add(D, "BackgroundTransparency");
+				if D:IsA("TextLabel") or D:IsA("TextButton") or D:IsA("TextBox") then
+					Add(D, "TextTransparency");
+				end;
+				if D:IsA("ImageLabel") or D:IsA("ImageButton") then
+					Add(D, "ImageTransparency");
+				end;
+				if D:IsA("ViewportFrame") then
+					Add(D, "ImageTransparency");
+				end;
+				if D:IsA("ScrollingFrame") then
+					Add(D, "ScrollBarImageTransparency");
+				end;
+			elseif D:IsA("UIStroke") then
+				Add(D, "Transparency");
+			end;
+		end;
+
 		if Show then
 			Gui.Enabled = true;
-			for _, E in Cache do E[1][E[2]] = 1 end;
-			for _, E in Cache do
+			for _, E in Items do E[1][E[2]] = 1 end;
+			for _, E in Items do
 				self:Tween(E[1], Info, { [E[2]] = E[3] }):Play();
 			end;
 		else
 			local Lead;
-			for _, E in Cache do
+			for _, E in Items do
 				local Tw = self:Tween(E[1], Info, { [E[2]] = 1 });
 				Lead = Lead or Tw;
 				Tw:Play();
@@ -745,7 +767,7 @@
 			local function Finish()
 				if Root:GetAttribute("_FadeShow") then return end;
 				Gui.Enabled = false;
-				for _, E in Cache do E[1][E[2]] = E[3] end;
+				for _, E in Items do E[1][E[2]] = E[3] end;
 			end;
 			if Lead then
 				Lead.Completed:Connect(Finish);
@@ -1346,6 +1368,8 @@
 				else
 					LibRef:Tween(Page, SlideTween, { Position = BasePagePos - UDim2.fromOffset(22, 0) }):Play();
 				end;
+				TabCover:SetAttribute("_fb_BackgroundTransparency", Active and 1 or 0);
+				TabFill:SetAttribute("_fb_BackgroundTransparency", Active and 0 or 1);
 				LibRef:FadeFrame(Page, Active);
 				LibRef:Tween(TabCover, TabColorTween, { BackgroundTransparency = Active and 1 or 0 }):Play();
 				LibRef:Tween(TabFill, TabColorTween, { BackgroundTransparency = Active and 0 or 1 }):Play();
@@ -2369,18 +2393,18 @@ end;
 						if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
 							Dragging = true;
 							UpdateFromX(Input.Position.X);
-						end;
+						end
 					end);
 					LibRef:Connection(Hit.InputEnded, function(Input)
 						if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
 							Dragging = false;
-						end;
+						end
 					end);
 					LibRef:Connection(UserInputService.InputChanged, function(Input)
 						if not Dragging then return end;
 						if Input.UserInputType == Enum.UserInputType.MouseMovement or Input.UserInputType == Enum.UserInputType.Touch then
 							UpdateFromX(Input.Position.X);
-						end;
+						end
 					end);
 
 					local SliderObj = { Container = Container, Track = Track, Fill = Fill, Label = NameLbl, ValueLabel = ValueLbl };
@@ -2753,6 +2777,7 @@ end;
 						Color = C;
 						SwatchFill.BackgroundColor3 = C;
 						SwatchFill.BackgroundTransparency = 1 - A;
+						SwatchFill:SetAttribute("_fb_BackgroundTransparency", 1 - A);
 						AlphaArea.BackgroundColor3 = C;
 						SatValArea.BackgroundColor3 = Color3.fromHSV(H, 1, 1);
 
@@ -2853,7 +2878,7 @@ end;
 							if WasDragging and CpFlag then
 								LibRef.Flags[CpFlag] = { Type = "Colorpicker"; Hex = Color:ToHex(); Alpha = A };
 							end;
-						end;
+						end
 					end);
 
 					LibRef:Connection(UserInputService.InputChanged, function(Input)
@@ -3777,12 +3802,12 @@ end;
 					LibRef:Connection(DragHit.InputBegan, function(Input)
 						if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
 							Dragging = true; LastPos = Input.Position;
-						end;
+						end
 					end);
 					LibRef:Connection(DragHit.InputEnded, function(Input)
 						if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
 							Dragging = false;
-						end;
+						end
 					end);
 					LibRef:Connection(UserInputService.InputChanged, function(Input)
 						if Dragging and (Input.UserInputType == Enum.UserInputType.MouseMovement or Input.UserInputType == Enum.UserInputType.Touch) then
@@ -3792,7 +3817,7 @@ end;
 							RotX = math.clamp(RotX - Delta.Y * 0.01, -math.pi / 2 + 0.1, math.pi / 2 - 0.1);
 						elseif (Hovering or Dragging) and Input.UserInputType == Enum.UserInputType.MouseWheel then
 							Dist = math.clamp(Dist - Input.Position.Z * 1.5, 3, 30);
-						end;
+						end
 					end);
 
 					LibRef:Connection(RunService.RenderStepped, function()
@@ -3980,6 +4005,8 @@ end;
 
 					Sec.Button = Btn;
 					function Sec.SetActive(A)
+						Cover:SetAttribute("_fb_BackgroundTransparency", A and 1 or 0);
+						Fill:SetAttribute("_fb_BackgroundTransparency", A and 0 or 1);
 						LibRef:FadeFrame(Sec.Frame, A);
 						LibRef:Tween(Cover, MsTween, { BackgroundTransparency = A and 1 or 0 }):Play();
 						LibRef:Tween(Fill, MsTween, { BackgroundTransparency = A and 0 or 1 }):Play();
@@ -6688,18 +6715,18 @@ end;
 				if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
 					Dragging = true;
 					Update(Input.Position.X);
-				end;
+				end
 			end);
 			LibRefA:Connection(Hit.InputEnded, function(Input)
 				if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
 					Dragging = false;
-				end;
+				end
 			end);
 			LibRefA:Connection(UserInputService.InputChanged, function(Input)
 				if not Dragging then return end;
 				if Input.UserInputType == Enum.UserInputType.MouseMovement or Input.UserInputType == Enum.UserInputType.Touch then
 					Update(Input.Position.X);
-				end;
+				end
 			end);
 			return { Set = function(_, v) Value = math.clamp(v, Min, Max); Render() end, Get = function() return Value end };
 		end;
@@ -6737,6 +6764,7 @@ end;
 				BorderSizePixel = 0;
 				ZIndex = 2;
 			});
+			Fill:SetAttribute("_fb_BackgroundTransparency", Default and 0 or 1);
 			local Lbl = LibRefA:CreateInstance("TextLabel", {
 				Parent = Row;
 				AnchorPoint = Vector2.new(0, 0.5);
@@ -6769,10 +6797,11 @@ end;
 			local Val = Default == true;
 			LibRefA:Connection(Hit.MouseButton1Click, function()
 				Val = not Val;
+				Fill:SetAttribute("_fb_BackgroundTransparency", Val and 0 or 1);
 				LibRefA:Tween(Fill, TogTween, { BackgroundTransparency = Val and 0 or 1 }):Play();
 				if OnChange then OnChange(Val) end;
 			end);
-			return { Set = function(_, v) v = v == true; if v == Val then return; end; Val = v; LibRefA:Tween(Fill, TogTween, { BackgroundTransparency = Val and 0 or 1 }):Play(); if OnChange then OnChange(Val) end; end; Get = function() return Val; end; };
+			return { Set = function(_, v) v = v == true; if v == Val then return; end; Val = v; Fill:SetAttribute("_fb_BackgroundTransparency", Val and 0 or 1); LibRefA:Tween(Fill, TogTween, { BackgroundTransparency = Val and 0 or 1 }):Play(); if OnChange then OnChange(Val) end; end; Get = function() return Val; end; };
 		end;
 
 		local function MountCp(Swatch, Default, OnChange)
@@ -6801,7 +6830,7 @@ end;
 						CpFadeItems[#CpFadeItems + 1] = { D, "BackgroundTransparency", D.BackgroundTransparency };
 						if D:IsA("TextLabel") or D:IsA("TextButton") or D:IsA("TextBox") then
 							CpFadeItems[#CpFadeItems + 1] = { D, "TextTransparency", D.TextTransparency };
-						end;
+						end
 						if D:IsA("ImageLabel") or D:IsA("ImageButton") then
 							CpFadeItems[#CpFadeItems + 1] = { D, "ImageTransparency", D.ImageTransparency };
 						end;
@@ -6913,7 +6942,7 @@ end;
 				LibRefA:Connection(UserInputService.InputEnded, function(I)
 					if I.UserInputType == Enum.UserInputType.MouseButton1 then
 						DragSat = false; DragHue = false; DragAlpha = false;
-					end;
+					end
 				end);
 				LibRefA:Connection(UserInputService.InputChanged, function(I)
 					if I.UserInputType ~= Enum.UserInputType.MouseMovement then return end;
