@@ -2470,7 +2470,7 @@ end;
 					local H, S, V = Color:ToHSV();
 					local A = math.clamp(Alpha, 0, 1);
 
-					local Swatch, SwatchFill;
+					local Swatch, SwatchFill, CpRow;
 					if typeof(MountInline) == "table" and MountInline.Swatch then
 						Swatch = MountInline.Swatch;
 						SwatchFill = MountInline.SwatchFill;
@@ -2482,6 +2482,7 @@ end;
 							BackgroundTransparency = 1;
 							BorderSizePixel = 0;
 						});
+						CpRow = Row;
 
 						local Lbl = LibRef:CreateInstance("TextLabel", {
 							Name = "Label";
@@ -2859,7 +2860,7 @@ end;
 						LibRef:Connection(Inst.InputBegan, function(Input)
 							if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
 								Setter(true);
-							end;
+							end
 						end);
 					end;
 
@@ -2921,12 +2922,32 @@ end;
 						local Flag = LibRef:AutoFlag("Color_" .. Name);
 						CpObj.Flag = Flag;
 						CpFlag = Flag;
-						LibRef:RegisterFlag(Flag, { Type = "Colorpicker", Hex = Color:ToHex(), Alpha = A }, function(v)
+						LibRef:RegisterFlag(Flag, { Type = "Colorpicker"; Hex = Color:ToHex(); Alpha = A }, function(v)
 							if typeof(v) == "table" and typeof(v.Hex) == "string" then
 								local C = Color3.fromHex(v.Hex);
 								CpObj:Set(C, tonumber(v.Alpha) or A);
 							end;
 						end);
+					end;
+
+					function CpObj:DependsOn(Parent, Required)
+						if typeof(Parent) ~= "table" or typeof(Parent.OnChanged) ~= "function" then
+							return self;
+						end;
+						Required = Required ~= false;
+						if typeof(Parent.Dependents) == "table" then
+							table.insert(Parent.Dependents, self);
+						end;
+						local First = true;
+						local function Refresh()
+							if not CpRow then return end;
+							local Show = (Parent:Get() == Required);
+							if First then First = false; CpRow.Visible = Show;
+							else LibRef:FadeResize(CpRow, Show) end;
+						end;
+						Parent:OnChanged(Refresh);
+						Refresh();
+						return self;
 					end;
 
 					return CpObj;
@@ -3312,7 +3333,7 @@ end;
 						end;
 						if not Inside(Popup) and not Inside(Row) then
 							DropdownObj:Close();
-						end;
+						end
 					end);
 
 					do
