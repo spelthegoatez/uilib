@@ -1081,6 +1081,17 @@
 			SortOrder = Enum.SortOrder.LayoutOrder;
 			Padding = UDim.new(0, -1);
 		});
+        		-- Shared sliding underline that glides between tabs
+		local TabSlider = self:CreateInstance("Frame", {
+			Name = "TabSlider";
+			Parent = Content;
+			Position = UDim2.new(0, 0, 0, 2);
+			Size = UDim2.new(0, 0, 0, 1);
+			BackgroundColor3 = Palette.Default.Accent;
+			BorderSizePixel = 0;
+			Visible = false;
+			ZIndex = 6;
+		});
 		self:CreateInstance("Frame", {
 			Name = "TabDividerOuter";
 			Parent = Content;
@@ -1226,17 +1237,7 @@
 				Thickness = 1;
 				ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
 			});
-			local TabFill = LibRef:CreateInstance("Frame", {
-				Name = "Fill";
-				Parent = Btn;
-				AnchorPoint = Vector2.new(0, 0);
-				Position = UDim2.new(0, 0, 0, 0);
-				Size = UDim2.new(1, 0, 0, 1);
-				BackgroundColor3 = Palette.Default.Accent;
-				BackgroundTransparency = 1;
-				BorderSizePixel = 0;
-				ZIndex = 4;
-			});
+
 
 			local Page = LibRef:CreateInstance("Frame", {
 				Name = "Page_" .. TabName;
@@ -1359,7 +1360,32 @@
 
 			local TabColorTween = TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out);
 			local SlideTween = TweenInfo.new(0.24, Enum.EasingStyle.Quint, Enum.EasingDirection.Out);
+			local SliderTween = TweenInfo.new(0.38, Enum.EasingStyle.Quint, Enum.EasingDirection.Out);
 			local BasePagePos = Page.Position;
+
+			local function SlideIndicator(Animate)
+				local BtnSize = Btn.AbsoluteSize;
+				if BtnSize.X <= 0 then
+					-- layout hasn't been computed yet; try again next frame
+					task.defer(function() SlideIndicator(Animate) end);
+					return;
+				end;
+				local BtnAbs = Btn.AbsolutePosition;
+				local ContentAbs = Content.AbsolutePosition;
+				local TargetPos = UDim2.new(0, BtnAbs.X - ContentAbs.X, 0, BtnAbs.Y - ContentAbs.Y);
+				local TargetSize = UDim2.new(0, BtnSize.X, 0, 1);
+				if Animate and TabSlider.Visible then
+					LibRef:Tween(TabSlider, SliderTween, {
+						Position = TargetPos;
+						Size = TargetSize;
+					}):Play();
+				else
+					TabSlider.Position = TargetPos;
+					TabSlider.Size = TargetSize;
+					TabSlider.Visible = true;
+				end;
+			end;
+
 			local function SetActive(Active)
 				TabObj.Active = Active;
 				if Active then
@@ -1369,11 +1395,13 @@
 					LibRef:Tween(Page, SlideTween, { Position = BasePagePos - UDim2.fromOffset(22, 0) }):Play();
 				end;
 				TabCover:SetAttribute("_fb_BackgroundTransparency", Active and 1 or 0);
-				TabFill:SetAttribute("_fb_BackgroundTransparency", Active and 0 or 1);
 				LibRef:FadeFrame(Page, Active);
 				LibRef:Tween(TabCover, TabColorTween, { BackgroundTransparency = Active and 1 or 0 }):Play();
-				LibRef:Tween(TabFill, TabColorTween, { BackgroundTransparency = Active and 0 or 1 }):Play();
 				LibRef:Tween(TabLbl, TabColorTween, { TextColor3 = Active and Color3.fromRGB(255, 255, 255) or Palette.Default.TabInactive }):Play();
+
+				if Active then
+					SlideIndicator(TabSlider.Visible);
+				end;
 			end;
 			TabObj.SetActive = SetActive;
 			SetActive(false);
