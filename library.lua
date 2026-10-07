@@ -1093,6 +1093,32 @@
 			Visible = false;
 			ZIndex = 6;
 		});
+		local TabSliderReady = false;
+		local TabSliderTween;
+
+		local function UpdateTabSlider(TargetBtn, Animate)
+			if not TargetBtn or not TargetBtn.Parent then return end;
+			local Sz = TargetBtn.AbsoluteSize;
+			if Sz.X <= 0 then
+				task.defer(function() UpdateTabSlider(TargetBtn, Animate) end);
+				return;
+			end;
+			local BtnAbs = TargetBtn.AbsolutePosition;
+			local ContentAbs = Content.AbsolutePosition;
+			local TargetPos = UDim2.new(0, BtnAbs.X - ContentAbs.X, 0, BtnAbs.Y - ContentAbs.Y);
+			local TargetSize = UDim2.new(0, Sz.X, 0, 1);
+			TabSlider.Visible = true;
+			if Animate then
+				if TabSliderTween then TabSliderTween:Cancel() end;
+				local Info = TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.Out);
+				TabSliderTween = LibRef:Tween(TabSlider, Info, { Position = TargetPos, Size = TargetSize });
+				TabSliderTween:Play();
+			else
+				TabSlider.Position = TargetPos;
+				TabSlider.Size = TargetSize;
+			end;
+			TabSliderReady = true;
+		end;
 
 		self:CreateInstance("Frame", {
 			Name = "TabDividerOuter";
@@ -1361,43 +1387,7 @@
 
 			local TabColorTween = TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out);
 			local SlideTween = TweenInfo.new(0.24, Enum.EasingStyle.Quint, Enum.EasingDirection.Out);
-			local SliderTween = TweenInfo.new(0.38, Enum.EasingStyle.Quint, Enum.EasingDirection.Out);
 			local BasePagePos = Page.Position;
-
-			local function SnapSlider()
-				local BtnSize = Btn.AbsoluteSize;
-				if BtnSize.X <= 0 then
-					task.defer(SnapSlider);
-					return;
-				end;
-				local BtnAbs = Btn.AbsolutePosition;
-				local ContentAbs = Content.AbsolutePosition;
-				TabSlider.Position = UDim2.new(0, BtnAbs.X - ContentAbs.X, 0, BtnAbs.Y - ContentAbs.Y);
-				TabSlider.Size = UDim2.new(0, BtnSize.X, 0, 1);
-				TabSlider.Visible = true;
-			end;
-
-			local function SlideSlider()
-				local BtnSize = Btn.AbsoluteSize;
-				if BtnSize.X <= 0 then
-					task.defer(SnapSlider);
-					return;
-				end;
-				local BtnAbs = Btn.AbsolutePosition;
-				local ContentAbs = Content.AbsolutePosition;
-				local TargetPos = UDim2.new(0, BtnAbs.X - ContentAbs.X, 0, BtnAbs.Y - ContentAbs.Y);
-				local TargetSize = UDim2.new(0, BtnSize.X, 0, 1);
-				if TabSlider.Visible then
-					LibRef:Tween(TabSlider, SliderTween, {
-						Position = TargetPos;
-						Size = TargetSize;
-					}):Play();
-				else
-					TabSlider.Position = TargetPos;
-					TabSlider.Size = TargetSize;
-					TabSlider.Visible = true;
-				end;
-			end;
 
 			local function SetActive(Active)
 				TabObj.Active = Active;
@@ -1413,7 +1403,7 @@
 				LibRef:Tween(TabLbl, TabColorTween, { TextColor3 = Active and Color3.fromRGB(255, 255, 255) or Palette.Default.TabInactive }):Play();
 
 				if Active then
-					if TabSlider.Visible then SlideSlider() else SnapSlider() end;
+					UpdateTabSlider(Btn, TabSliderReady);
 				end;
 			end;
 			TabObj.SetActive = SetActive;
