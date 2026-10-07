@@ -1081,7 +1081,8 @@
 			SortOrder = Enum.SortOrder.LayoutOrder;
 			Padding = UDim.new(0, -1);
 		});
-        		-- Shared sliding underline that glides between tabs
+
+		-- Shared sliding underline that glides between tabs
 		local TabSlider = self:CreateInstance("Frame", {
 			Name = "TabSlider";
 			Parent = Content;
@@ -1092,6 +1093,7 @@
 			Visible = false;
 			ZIndex = 6;
 		});
+
 		self:CreateInstance("Frame", {
 			Name = "TabDividerOuter";
 			Parent = Content;
@@ -1238,7 +1240,6 @@
 				ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
 			});
 
-
 			local Page = LibRef:CreateInstance("Frame", {
 				Name = "Page_" .. TabName;
 				Parent = Content;
@@ -1363,18 +1364,30 @@
 			local SliderTween = TweenInfo.new(0.38, Enum.EasingStyle.Quint, Enum.EasingDirection.Out);
 			local BasePagePos = Page.Position;
 
-			local function SlideIndicator(Animate)
+			local function SnapSlider()
 				local BtnSize = Btn.AbsoluteSize;
 				if BtnSize.X <= 0 then
-					-- layout hasn't been computed yet; try again next frame
-					task.defer(function() SlideIndicator(Animate) end);
+					task.defer(SnapSlider);
+					return;
+				end;
+				local BtnAbs = Btn.AbsolutePosition;
+				local ContentAbs = Content.AbsolutePosition;
+				TabSlider.Position = UDim2.new(0, BtnAbs.X - ContentAbs.X, 0, BtnAbs.Y - ContentAbs.Y);
+				TabSlider.Size = UDim2.new(0, BtnSize.X, 0, 1);
+				TabSlider.Visible = true;
+			end;
+
+			local function SlideSlider()
+				local BtnSize = Btn.AbsoluteSize;
+				if BtnSize.X <= 0 then
+					task.defer(SnapSlider);
 					return;
 				end;
 				local BtnAbs = Btn.AbsolutePosition;
 				local ContentAbs = Content.AbsolutePosition;
 				local TargetPos = UDim2.new(0, BtnAbs.X - ContentAbs.X, 0, BtnAbs.Y - ContentAbs.Y);
 				local TargetSize = UDim2.new(0, BtnSize.X, 0, 1);
-				if Animate and TabSlider.Visible then
+				if TabSlider.Visible then
 					LibRef:Tween(TabSlider, SliderTween, {
 						Position = TargetPos;
 						Size = TargetSize;
@@ -1400,7 +1413,7 @@
 				LibRef:Tween(TabLbl, TabColorTween, { TextColor3 = Active and Color3.fromRGB(255, 255, 255) or Palette.Default.TabInactive }):Play();
 
 				if Active then
-					SlideIndicator(TabSlider.Visible);
+					if TabSlider.Visible then SlideSlider() else SnapSlider() end;
 				end;
 			end;
 			TabObj.SetActive = SetActive;
@@ -6980,7 +6993,7 @@ end;
 					LibRefA:Connection(Inst.InputBegan, function(I)
 						if I.UserInputType == Enum.UserInputType.MouseButton1 or I.UserInputType == Enum.UserInputType.Touch then
 							Setter(true);
-						end;
+						end
 					end);
 				end;
 				HookDown(SatLayer, function(B) DragSat = B end);
